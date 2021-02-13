@@ -1,0 +1,387 @@
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.action_chains import ActionChains
+import time
+import re
+import random
+
+user=[]
+driver_option=[[0 for i in range(3)] for i in range(3)]
+url='https://pc.xuexi.cn/points/login.html'
+info="""
+总积分为 {} ，今日已经获取的积分为 {} ，
+读文章 {}，视频学习 {}， 视频学习时长{} ，
+每日答题 {}，每周答题 {}，专项答题 {}
+"""
+
+def driver_start():
+    auto = 'y' #input("执行视频是否静音(Y/n):")
+    display = 'y' #input("是否显示自动化过程(y/N):")
+    print("稍等一会儿，正在连接服务器（等待时间主要取决于网速，其次是电脑性能）！")
+    if auto in ['y', 'Y', '']:
+        driver_option[1][1] = True
+    else:
+        driver_option[1][1] = False
+    if display in ['y', 'Y']:
+        driver_option[2][1] = True
+    else:
+        driver_option[2][1] = False
+    chrome_options=Options()
+    #chrome浏览器参数的作用
+    if driver_option[1][1]:
+        chrome_options.add_argument("-mute-audio")
+    if not driver_option[2][1]:
+        chrome_options.add_argument("--headless")
+    browse=webdriver.Chrome(options=chrome_options)
+    browse.implicitly_wait(10)
+    return browse
+
+def logn():
+    browse=driver_start()
+    browse.get(url)
+    while True:
+        cookies=browse.get_cookies()
+        if cookies[0]["name"]=="uaToken" :
+            break
+    return browse
+
+def infromation(browse):
+    qwe=[]
+    qwe.append(browse.find_element_by_xpath("//*[@id='app']/div/div[2]/div/div[2]/div[2]/span[1]").text)
+    qwe.append(browse.find_element_by_xpath("//*[@id='app']/div/div[2]/div/div[2]/div[2]/span[3]").text)
+    qwe.append(browse.find_element_by_xpath("//*[@id='app']/div/div[2]/div/div[3]/div[2]/div[2]/div[3]/div[1]/div[2]").text)
+    qwe.append(browse.find_element_by_xpath('//*[@id="app"]/div/div[2]/div/div[3]/div[2]/div[3]/div[2]/div[1]/div[2]').text)
+    qwe.append(browse.find_element_by_xpath('//*[@id="app"]/div/div[2]/div/div[3]/div[2]/div[4]/div[2]/div[1]/div[2]').text)
+    qwe.append(browse.find_element_by_xpath('//*[@id="app"]/div/div[2]/div/div[3]/div[2]/div[5]/div[2]/div[1]/div[2]').text)
+    qwe.append(browse.find_element_by_xpath('//*[@id="app"]/div/div[2]/div/div[3]/div[2]/div[6]/div[2]/div[1]/div[2]').text)
+    qwe.append(browse.find_element_by_xpath('//*[@id="app"]/div/div[2]/div/div[3]/div[2]/div[7]/div[2]/div[1]/div[2]').text)
+    return qwe
+
+def display():
+    browse=logn()
+    time.sleep(1)
+    drive=browse.find_element_by_xpath('//*[@id="app"]/div/div[2]/div/div/div[1]/div/a[3]/div/div[2]/div[1]')
+    drive.click()
+    time.sleep(1)
+    handle=browse.window_handles
+    browse.switch_to.window(handle[1])
+    time.sleep(3)
+    global user
+    user=infromation(browse)
+    print(user)
+    infor=info.format(*user)
+    print(infor)
+    print("开始获取积分")
+    return browse
+
+def read(browse):
+    r=browse.find_element_by_xpath('//*[@id="app"]/div/div[2]/div/div[3]/div[2]/div[2]/div[3]/div[2]/div')
+    r.click()
+    handle = browse.window_handles
+    try:
+        browse.switch_to.window(handle[2])  
+    except IndexError:
+        print("文章部分已经完成")
+        return browse
+    time.sleep(1.5)
+    qwe=browse.find_elements_by_xpath('//span[@class="text"]')
+    while len(qwe)<35:
+        qwe=browse.find_elements_by_xpath('//span[@class="text"]')
+    print(len(qwe))
+    i=0
+    js = "return action=document.body.scrollHeight"
+    jsBottm = "var q=document.documentElement.scrollTop={}"
+    browse.switch_to.window(handle[1])
+    while True:
+        browse.execute_script("location.reload()")
+        user[2]=browse.find_element_by_xpath("//*[@id='app']/div/div[2]/div/div[3]/div[2]/div[2]/div[3]/div[1]/div[2]").text #主界面查询分数
+        adc=re.search("(\d+).*?(\d+)",user[2])
+        print(adc.group(1),adc.group(2))
+        if adc.group(1)==adc.group(2):
+            break
+        spend_time=random.randint(60,65)
+        print("文章阅读开始，用时%d秒" % spend_time)
+        browse.switch_to.window(handle[2])
+        qwe[i].click()
+        print(i)
+        time.sleep(2)
+        i+=1
+        handle = browse.window_handles
+        browse.switch_to.window(handle[3])
+        height=browse.execute_script(js)-1500
+        if height<0:
+            height=-height
+        step=height/spend_time
+        h=step
+        while spend_time:
+            browse.execute_script(jsBottm.format(step))
+            spend_time-=1
+            step+=h
+            time.sleep(1)
+        browse.close()
+        browse.switch_to.window(handle[1])
+        print(browse.window_handles)
+    browse.switch_to.window(handle[2])
+    browse.close()
+    browse.switch_to.window(handle[1])
+    print("文章部分已经完成")
+    return browse
+
+def video(browse):
+    try:
+        r=browse.find_element_by_xpath('//*[@id="app"]/div/div[2]/div/div[3]/div[2]/div[3]/div[2]/div[2]/div')
+    except :
+        r=browse.find_element_by_xpath('//*[@id="app"]/div/div[2]/div/div[3]/div[2]/div[4]/div[2]/div[2]/div')
+    r.click()
+    try :
+        handle = browse.window_handles
+        browse.switch_to.window(handle[2])
+    except IndexError:
+        print("视频部分已经完成")
+        return browse
+    r=browse.find_element_by_xpath('//*[@id="9309"]/div/div/div/div/div/div/div/div[1]/div/div[1]/div/div')
+    r.click()
+    time.sleep(1)
+    handle = browse.window_handles
+    browse.switch_to.window(handle[3])
+    qwe=[]
+    wait = WebDriverWait(browse, 60).until(  # 显式等待
+       EC.presence_of_element_located((By.XPATH,'//div[@class="grid-cell"][3]/div/div/div'))
+     )
+    time.sleep(2)
+    for i in range(1,6):
+        for j in range(1,5):
+            qwe.append(browse.find_element_by_xpath('//section/div[3]/section/div/div/div[1]/div[{}]/div[{}]/section/div/div/div/div/div[3]/div/div/div'.format(i,j)))#查看视频
+    browse.switch_to.window(handle[1])
+    page=1
+    i=1
+    while True:
+        browse.execute_script("location.reload()")
+        user[3] = browse.find_element_by_xpath('//*[@id="app"]/div/div[2]/div/div[3]/div[2]/div[3]/div[2]/div[1]/div[2]').text  # 主界面查询分数
+        adc = re.search("(\d+).*?(\d+)", user[3])
+        user[4]=browse.find_element_by_xpath('//*[@id="app"]/div/div[2]/div/div[3]/div[2]/div[4]/div[2]/div[1]/div[2]').text
+        tp=re.search("(\d+).*?(\d+)", user[4])
+        if adc.group(1) == adc.group(2) and tp.group(1)==tp.group(2):
+            break
+        browse.switch_to.window(handle[3])
+        if i>=len(qwe):
+            qwe.clear()
+            i=1
+            page+=1
+            browse.close()
+            browse.switch_to.window(handle[2])
+            ActionChains(browse).double_click(browse.find_element_by_xpath('//*[@id="9309"]/div/div/div/div/div/div/div/div[1]/div/div[{}]/div/div'.format(page))).perform()
+            handle=browse.window_handles
+            browse.switch_to.window(handle[3])
+            for i in range(1, 6):
+                for j in range(1, 5):
+                    qwe.append(browse.find_element_by_xpath(
+                        '//section/div[3]/section/div/div/div[1]/div[{}]/div[{}]/section//div[@class="grid-cell"]/div/div/div'.format(
+                            i, j)))  # 查看视频
+        #点击视频，开始播放
+        qwe[i].click()
+        i+=1
+        handle=browse.window_handles
+        browse.switch_to.window(handle[4])
+        #最后一步，让程序等待节点的加载，网络不好
+        wait = WebDriverWait(browse, 30).until(  # 显式等待
+            EC.presence_of_element_located((By.XPATH,
+        '//div[@class="prism-time-display"]/span[@ class="duration"]'))
+        )
+        #显示视频时间
+        #time.sleep(3)
+        text=''
+        print("获取视频时间")
+        time.sleep(1)
+        while not text:
+            mouse=browse.find_element_by_xpath('//div/video')
+            ActionChains(browse).move_to_element(mouse).perform()
+            text=browse.find_element_by_xpath(
+                '//div[@class="prism-time-display"]/span[@ class="duration"]').text
+        print(text)
+        apc=re.search("(\d+).*?(\d+)", text)
+        times=int(apc.group(1))*60+int(apc.group(2))
+        if times>=300:
+            browse.close()
+            browse.switch_to.window(handle[1])
+            print("时间过长切换视频")
+            continue
+        print("需要时间%d秒" %times)
+        time.sleep(times)
+        browse.close()
+        browse.switch_to.window(handle[1])
+        print("该视频播放完成")
+    for i in range(2,4):
+        browse.switch_to.window(handle[i])
+        browse.close()
+    browse.switch_to.window(handle[1])
+    print("视频部分已经完成")
+    return browse
+
+def answer(browse):
+    while True:
+        tip = browse.find_element_by_xpath('//*[@id="app"]/div//span[@class="tips"]')  # 查看提示
+        tip.click()
+        time.sleep(2)
+        # 获取提示的答案
+        try:
+            qwe = browse.find_elements_by_xpath('//*[@id="body-body"]//div//font[@color="red"]')
+            tip.click()  # 关闭提示
+            for i in range(len(qwe)):
+                qwe[i] = qwe[i].text
+        except:
+            qwe=[]
+            qwe.append('A')
+        print(qwe)
+        time.sleep(1)
+        asd = browse.find_elements_by_xpath('//*[@id="app"]/div//div[@class="q-answers"]/div')
+        #asd存储的是选项
+        if asd:
+            num=0
+            if qwe == []:
+                qwe.append('A')
+                # 开始判断选项的对错
+            p = re.search("[A-Ea-e]+", qwe[0])
+            if p==None:
+                p=[]
+            else :
+                p=p.group()
+            for i in asd:
+                g = re.search('..(.*)', i.text)
+                k = g.group(1).replace(" ", '')
+                #print(k, qwe,' ',p, g.group(0)[0])
+                if k in qwe or g.group(0)[0] in p:  # 选择正确则进行点击
+                    browse.execute_script("arguments[0].click();", i)
+                    num+=1
+            if num == 0 :
+                qwe.append("A")
+        else:
+            # 获取空格
+            blank = browse.find_elements_by_xpath('//*[@id="app"]/div/div[2]//input[@type="text"]')
+            print("填空")
+            if qwe == []:
+                qwe.append('不会')
+            for i in range(len(blank)):
+                blank[i].send_keys(qwe[i])
+                print(qwe[i])
+        # 获取题目的数量，判断是否结束答题
+        t1 = browse.find_element_by_xpath('//*[@id="app"]/div//div[@class="pager"]').text
+        t0, t1 = t1.split('/')
+        if t0 == t1:
+            print("该页面的答题结束")
+            browse.find_element_by_xpath(
+                '//*[@id="app"]/div//button[@class="ant-btn next-btn ant-btn-primary"]').click()
+            break
+        time.sleep(1)
+        browse.find_element_by_xpath('//*[@id="app"]/div//button[@class="ant-btn next-btn ant-btn-primary"]').click()
+        # 回答错误的情况，需要再次点击下一题
+        t1 = browse.find_element_by_xpath('//*[@id="app"]/div//div[@class="pager"]').text
+        at = t1.split('/')
+        print(at[0], t0)
+        if at[0] == t0:
+            print("再次点击")
+            browse.find_element_by_xpath(
+                '//*[@id="app"]/div//button[@class="ant-btn next-btn ant-btn-primary"]').click()
+
+def day(browse):
+    url0=browse.current_url
+    r=browse.find_element_by_xpath('//*[@id="app"]/div/div[2]/div/div[3]/div[2]/div[5]/div[2]/div[2]/div')
+    r.click()
+    url1=browse.current_url
+    if url0==url1:
+        print("每日答题已经完成")
+        return
+    time.sleep(1)
+    #开始答题
+    answer(browse)
+    print("每日答题已经完成")
+    time.sleep(3)
+    handle = browse.window_handles
+    browse.close()
+    browse.switch_to.window(handle[0])
+    drive = browse.find_element_by_xpath('//*[@id="app"]/div/div[2]/div/div/div[1]/div/a[3]/div/div[2]/div[1]')
+    drive.click()
+    handle = browse.window_handles
+    browse.switch_to.window(handle[1])
+    #browse.find_element_by_xpath('//*[@id="app"]/div/div[2]/div/div[4]/div[1]/div[3]/span')#获取提示
+
+def week(browse):
+    url0 = browse.current_url
+    r = browse.find_element_by_xpath('//*[@id="app"]/div/div[2]/div/div[3]/div[2]/div[6]/div[2]/div[2]/div')
+    r.click()  # 进入答题页面
+    url1 = browse.current_url
+    if url0 == url1:
+        print("每周答题已经完成")
+        return
+    time.sleep(1)
+    qwe = browse.find_elements_by_xpath('//div[@class="week"]/button[@type="button"]/span')
+    for i in range(len(qwe)):
+        if qwe[i].text !="开始答题":
+            qwe=qwe[0:i]
+            break
+    time.sleep(1)
+    try:
+        print(qwe,qwe[-1])
+        browse.execute_script("arguments[0].click();", qwe[-1])
+        time.sleep(1)
+        answer(browse)
+        time.sleep(3)
+    except IndexError:
+        print('已经无本周答题')
+    handle = browse.window_handles
+    browse.close()
+    browse.switch_to.window(handle[0])
+    drive = browse.find_element_by_xpath('//*[@id="app"]/div/div[2]/div/div/div[1]/div/a[3]/div/div[2]/div[1]')
+    drive.click()
+    handle = browse.window_handles
+    browse.switch_to.window(handle[1])
+
+def special(browse):
+    url0 = browse.current_url
+    r = browse.find_element_by_xpath('//*[@id="app"]/div/div[2]/div/div[3]/div[2]/div[7]/div[2]/div[2]/div')
+    r.click()  # 进入答题页面
+    url1 = browse.current_url
+    if url0 == url1:
+        print("每周答题已经完成")
+        return
+    time.sleep(1)
+    qwe=browse.find_elements_by_xpath('//div[@class="right"]/button[@type="button"]/span')
+    for i in range(len(qwe)):
+        if qwe[i].text =="重新答题" or qwe[i].text=='已满分':
+            qwe=qwe[0:i]
+            break
+    try:
+        print(qwe, qwe[-1])
+        time.sleep(1)
+        browse.execute_script("arguments[0].click();", qwe[-1])
+        time.sleep(1)
+        answer(browse)
+        browse.find_element_by_xpath('//*[@id="app"]/div//button[2]').click()
+        time.sleep(4)
+    except IndexError:
+        print('已经无专项答题')
+    handle = browse.window_handles
+    browse.close()
+    browse.switch_to.window(handle[0])
+    drive = browse.find_element_by_xpath('//*[@id="app"]/div/div[2]/div/div/div[1]/div/a[3]/div/div[2]/div[1]')
+    drive.click()
+    handle = browse.window_handles
+    browse.switch_to.window(handle[1])
+
+
+if __name__=="__main__":
+    browse=display()
+    browse=read(browse)
+    browse=video(browse)
+    qwe=infromation(browse)
+    print("\n\n 开始答题，积分情况为\n"+info.format(*qwe))
+    day(browse)
+    week(browse)
+    special(browse)
+    print("自动答题结束，程序退出")
+    qwe = infromation(browse)
+    print("\n\n 程序结束，积分情况为\n" + info.format(*qwe))
+    browse.quit()
